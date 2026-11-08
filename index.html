@@ -664,9 +664,13 @@ $('#invWaBtn').onclick = async () => {
   if (!curSale || !curBlob) return;
   const raw = $('#invWa').value.trim(), num = waNumber(raw);
   if (raw && !num) { invMsg('⚠ Nomor WhatsApp tidak valid. Contoh: 0812xxxxxxx'); return; }
-  if (num) {   // ada nomor: buka chat ke nomor itu dengan rincian invoice (WhatsApp tidak bisa melampirkan gambar lewat tautan)
-    window.open('https://wa.me/' + num + '?text=' + encodeURIComponent(waText(curSale)), '_blank');
-    invMsg('WhatsApp dibuka dengan rincian invoice. Untuk mengirim gambarnya, kosongkan nomor lalu tekan tombol ini lagi, atau pakai "Unduh gambar" dan lampirkan di chat.');
+  if (num) {   // ada nomor: salin gambar ke clipboard, buka chat ke nomor itu, lalu pelanggan tinggal tempel (paste) gambarnya
+    let copied = false;
+    try { await navigator.clipboard.write([new ClipboardItem({'image/png': curBlob})]); copied = true; } catch (_) {}
+    if (!copied) $('#invDownload').click();
+    window.open('https://wa.me/' + num + '?text=' + encodeURIComponent('Invoice ' + invNo(curSale)), '_blank');
+    invMsg(copied ? '✓ Gambar disalin. Di chat WhatsApp yang terbuka, tempel gambarnya (Ctrl+V, atau tekan lama kolom pesan lalu Tempel), lalu kirim.'
+                  : 'Gambar diunduh (salin otomatis tidak didukung). Di chat WhatsApp yang terbuka, lampirkan gambar dari unduhan, lalu kirim.');
     return;
   }
   const file = new File([curBlob], invNo(curSale) + '.png', {type:'image/png'});
