@@ -1,0 +1,666 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f766e">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>Catatan Penjualan</title>
+<style>
+:root{--bg:#f4f6f8;--card:#fff;--ink:#1c2530;--muted:#6b7785;--line:#e3e8ee;--main:#0f766e;--main-d:#0b5a54;--warn:#b45309;--bad:#b91c1c;--ok:#15803d}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px}
+header{position:sticky;top:0;z-index:5;background:var(--main);color:#fff;display:flex;align-items:center;gap:10px;padding:10px 14px;padding-top:calc(10px + env(safe-area-inset-top))}
+header img{width:36px;height:36px;border-radius:8px;object-fit:contain;background:#fff}
+header h1{font-size:17px;margin:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#badge{font-size:12px;background:rgba(255,255,255,.18);padding:4px 9px;border-radius:99px;white-space:nowrap}
+main{max-width:1000px;margin:0 auto;padding:12px 12px 90px}
+.tab{display:none}.tab.active{display:block}
+nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom);z-index:5}
+nav button{flex:1;border:0;background:none;padding:10px 4px;font-size:12px;color:var(--muted);cursor:pointer}
+nav button b{display:block;font-size:19px;font-weight:400}
+nav button.on{color:var(--main);font-weight:600}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px}
+.card h2{font-size:15px;margin:0 0 10px}
+input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff;color:var(--ink)}
+label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+button.btn{border:0;background:var(--main);color:#fff;padding:10px 14px;border-radius:8px;font:inherit;font-weight:600;cursor:pointer}
+button.btn:active{background:var(--main-d)}
+button.alt{background:#e8eef3;color:var(--ink)}
+button.danger{background:#fde8e8;color:var(--bad)}
+button.btn:disabled{opacity:.5}
+.row{display:flex;gap:8px;align-items:center}
+.row>*{flex:1}.row>.fit{flex:none}
+.muted{color:var(--muted);font-size:13px}
+.kasir{display:grid;gap:12px}
+@media(min-width:800px){.kasir{grid-template-columns:1.3fr 1fr;align-items:start}}
+#plist{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-top:10px;max-height:60vh;overflow:auto}
+.prod{border:1px solid var(--line);background:#fff;border-radius:10px;padding:10px;text-align:left;cursor:pointer;font:inherit;color:var(--ink)}
+.prod:active{background:#e6f4f2}
+.prod .n{font-weight:600;display:block;margin-bottom:4px}
+.prod .p{color:var(--main);font-weight:600}
+.prod .s{font-size:12px;color:var(--muted);display:block}
+.prod.out{opacity:.45}
+.line{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)}
+.line .nm{flex:1}
+.line .nm small{display:block;color:var(--muted)}
+.qty{display:flex;align-items:center;gap:6px}
+.qty button{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:#fff;font-size:17px;cursor:pointer}
+.total{display:flex;justify-content:space-between;font-size:18px;font-weight:700;padding:10px 0}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.chips button{flex:none;border:1px solid var(--line);background:#fff;border-radius:99px;padding:6px 12px;cursor:pointer;font:inherit}
+.li{display:flex;justify-content:space-between;gap:8px;padding:10px 0;border-bottom:1px solid var(--line);cursor:pointer}
+.li:last-child{border-bottom:0}
+.li small{color:var(--muted);display:block}
+.stat{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}
+.stat div{background:#f0f7f6;border-radius:10px;padding:10px}
+.stat b{display:block;font-size:16px}
+.stat span{font-size:12px;color:var(--muted)}
+dialog{border:0;border-radius:14px;padding:16px;width:min(440px,94vw)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+#toast{position:fixed;left:50%;bottom:80px;transform:translateX(-50%);background:#1c2530;color:#fff;padding:9px 16px;border-radius:99px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:20;max-width:90vw;text-align:center}
+#toast.show{opacity:1}
+#logoPrev{width:84px;height:84px;object-fit:contain;border:1px dashed var(--line);border-radius:10px;background:#fff}
+.ok{color:var(--ok)}.wait{color:var(--warn)}
+#struk{display:none}
+@media print{
+  body>*:not(#struk){display:none!important}
+  #struk{display:block;width:58mm;margin:0;padding:2mm;font:12px/1.35 monospace;color:#000;background:#fff}
+  #struk img{display:block;margin:0 auto 4px;max-width:30mm;max-height:20mm}
+  #struk h2{text-align:center;font-size:14px;margin:0}
+  #struk .c{text-align:center}
+  #struk hr{border:0;border-top:1px dashed #000;margin:5px 0}
+  #struk .r{display:flex;justify-content:space-between;gap:6px}
+  @page{margin:0}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <img id="hLogo" alt="" hidden>
+  <h1 id="hName">Toko Saya</h1>
+  <span id="badge">...</span>
+</header>
+
+<main>
+  <!-- KASIR -->
+  <section class="tab active" id="tab-kasir">
+    <div class="kasir">
+      <div class="card">
+        <h2>Pilih Barang</h2>
+        <input id="q" type="search" placeholder="Cari nama atau kode barang...">
+        <div id="plist"></div>
+      </div>
+      <div class="card">
+        <h2>Keranjang</h2>
+        <div id="cartList"></div>
+        <div class="total"><span>Total</span><span id="cartTotal">Rp 0</span></div>
+        <label for="pay">Uang diterima</label>
+        <input id="pay" type="number" inputmode="numeric" min="0" placeholder="Kosongkan jika uang pas">
+        <div class="chips" id="quick"></div>
+        <div class="total" style="font-size:15px;padding-top:0"><span id="chgLabel">Kembalian</span><span id="chg">Rp 0</span></div>
+        <div class="row">
+          <button class="btn alt" id="btnSave">Simpan</button>
+          <button class="btn" id="btnSavePrint">Simpan & Cetak</button>
+        </div>
+        <button class="btn danger" id="btnClear" style="width:100%;margin-top:8px">Kosongkan keranjang</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRODUK -->
+  <section class="tab" id="tab-produk">
+    <div class="card">
+      <div class="row">
+        <input id="pq" type="search" placeholder="Cari produk...">
+        <button class="btn fit" id="btnAddProd">+ Produk</button>
+      </div>
+      <div id="prodList" style="margin-top:8px"></div>
+    </div>
+  </section>
+
+  <!-- LAPORAN -->
+  <section class="tab" id="tab-laporan">
+    <div class="card">
+      <div class="row">
+        <div><label>Dari</label><input type="date" id="dFrom"></div>
+        <div><label>Sampai</label><input type="date" id="dTo"></div>
+      </div>
+      <div class="stat">
+        <div><b id="stOmzet">Rp 0</b><span>Omzet</span></div>
+        <div><b id="stTrx">0</b><span>Transaksi</span></div>
+        <div><b id="stItem">0</b><span>Barang terjual</span></div>
+      </div>
+      <h2>Barang terlaris</h2>
+      <div id="top"></div>
+    </div>
+    <div class="card">
+      <h2>Daftar Transaksi</h2>
+      <div id="saleList"></div>
+      <button class="btn alt" id="btnCsv" style="width:100%;margin-top:10px">Unduh laporan (CSV)</button>
+    </div>
+  </section>
+
+  <!-- PENGATURAN -->
+  <section class="tab" id="tab-setting">
+    <div class="card">
+      <h2>Identitas Toko</h2>
+      <label>Logo toko</label>
+      <div class="row" style="align-items:flex-end">
+        <img id="logoPrev" alt="" class="fit">
+        <div>
+          <input type="file" id="logoFile" accept="image/*">
+          <button class="btn danger" id="btnLogoDel" style="margin-top:8px">Hapus logo</button>
+        </div>
+      </div>
+      <label>Nama toko</label><input id="sName" placeholder="Contoh: Toko Maju Jaya">
+      <label>Alamat / telepon (tampil di struk)</label><textarea id="sAddr" rows="2"></textarea>
+      <label>Catatan bawah struk</label><input id="sFoot" placeholder="Terima kasih atas kunjungan Anda">
+      <button class="btn" id="btnSaveShop" style="margin-top:12px;width:100%">Simpan identitas toko</button>
+    </div>
+
+    <div class="card">
+      <h2>Sinkronisasi Supabase (opsional)</h2>
+      <p class="muted" style="margin-top:0">Tanpa pengaturan ini aplikasi tetap bekerja penuh, data hanya tersimpan di perangkat ini.</p>
+      <label>Project URL</label><input id="sbUrl" placeholder="https://xxxx.supabase.co" autocapitalize="off">
+      <label>Anon public key</label><input id="sbKey" autocapitalize="off">
+      <button class="btn alt" id="btnSbSave" style="margin-top:10px;width:100%">Simpan koneksi</button>
+      <label>Email login</label><input id="sbEmail" type="email" autocapitalize="off">
+      <label>Password</label><input id="sbPass" type="password">
+      <div class="row" style="margin-top:10px">
+        <button class="btn" id="btnLogin">Login</button>
+        <button class="btn alt" id="btnLogout">Keluar</button>
+      </div>
+      <p class="muted" id="sbStatus"></p>
+      <button class="btn alt" id="btnSyncNow" style="width:100%">Sinkronkan sekarang</button>
+    </div>
+
+    <div class="card">
+      <h2>Cadangan Data</h2>
+      <div class="row">
+        <button class="btn alt" id="btnBackup">Unduh backup (JSON)</button>
+        <button class="btn alt" id="btnRestore">Pulihkan dari backup</button>
+      </div>
+      <input type="file" id="restoreFile" accept="application/json" hidden>
+      <p class="muted">Data lokal bisa hilang jika data browser dihapus. Unduh backup secara berkala.</p>
+    </div>
+  </section>
+</main>
+
+<nav>
+  <button data-tab="kasir" class="on"><b>🛒</b>Kasir</button>
+  <button data-tab="produk"><b>📦</b>Produk</button>
+  <button data-tab="laporan"><b>📊</b>Laporan</button>
+  <button data-tab="setting"><b>⚙️</b>Pengaturan</button>
+</nav>
+
+<!-- Dialog produk -->
+<dialog id="dlgProd">
+  <form method="dialog" id="fProd">
+    <h2 id="dpTitle" style="margin-top:0">Produk</h2>
+    <label>Nama produk</label><input id="pName" required>
+    <label>Kode / barcode (opsional)</label><input id="pCode">
+    <label>Harga jual (Rp)</label><input id="pPrice" type="number" inputmode="numeric" min="0" required>
+    <label>Stok (kosongkan jika tidak dihitung)</label><input id="pStock" type="number" inputmode="numeric" min="0">
+    <div class="row" style="margin-top:14px">
+      <button class="btn alt" type="button" id="dpCancel">Batal</button>
+      <button class="btn" type="submit">Simpan</button>
+    </div>
+    <button class="btn danger" type="button" id="dpDelete" style="width:100%;margin-top:8px">Hapus produk</button>
+  </form>
+</dialog>
+
+<!-- Dialog detail transaksi -->
+<dialog id="dlgSale">
+  <h2 style="margin-top:0">Detail Transaksi</h2>
+  <div id="saleDetail"></div>
+  <div class="row" style="margin-top:12px">
+    <button class="btn alt" id="dsClose">Tutup</button>
+    <button class="btn" id="dsPrint">Cetak ulang</button>
+  </div>
+</dialog>
+
+<div id="struk"></div>
+<div id="toast"></div>
+
+<script>
+'use strict';
+/* ========== Util ========== */
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const fmt = n => 'Rp ' + Math.round(Number(n) || 0).toLocaleString('id-ID');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uuid = () => (crypto.randomUUID ? crypto.randomUUID() :
+  'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random()*16|0; return (c==='x'?r:(r&3|8)).toString(16); }));
+const nowISO = () => new Date().toISOString();
+function todayStr(){ const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0,10); }
+let toastT;
+function toast(m){ const t = $('#toast'); t.textContent = m; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(()=>t.classList.remove('show'), 2400); }
+
+/* ========== IndexedDB ========== */
+let db;
+function openDB(){
+  return new Promise((res, rej) => {
+    const r = indexedDB.open('toko-app', 1);
+    r.onupgradeneeded = () => {
+      const d = r.result;
+      d.createObjectStore('products', {keyPath:'id'});
+      d.createObjectStore('sales', {keyPath:'id'});
+      d.createObjectStore('settings', {keyPath:'key'});
+    };
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+const dbAll = store => new Promise((res, rej) => { const r = db.transaction(store).objectStore(store).getAll(); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+const dbGet = (store, key) => new Promise((res, rej) => { const r = db.transaction(store).objectStore(store).get(key); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+function dbPutMany(store, list){
+  return new Promise((res, rej) => {
+    const t = db.transaction(store, 'readwrite'); const s = t.objectStore(store);
+    list.forEach(x => s.put(x));
+    t.oncomplete = () => res(); t.onerror = () => rej(t.error);
+  });
+}
+const getSet = async (k, def = '') => { const r = await dbGet('settings', k); return r ? r.value : def; };
+const setSet = (k, v) => dbPutMany('settings', [{key:k, value:v}]);
+const delSet = k => new Promise((res, rej) => { const t = db.transaction('settings', 'readwrite'); t.objectStore('settings').delete(k); t.oncomplete = () => res(); t.onerror = () => rej(t.error); });
+
+/* ========== State ========== */
+let allProducts = [], products = [], sales = [];
+let cart = {};            // productId -> qty
+let S = {shopName:'', address:'', footer:'', logo:''};
+let editingId = null, viewingSale = null;
+
+async function loadData(){
+  allProducts = await dbAll('products');
+  products = allProducts.filter(p => !p.deleted).sort((a,b) => a.name.localeCompare(b.name, 'id'));
+  sales = (await dbAll('sales')).sort((a,b) => b.created_at.localeCompare(a.created_at));
+}
+async function loadShop(){
+  S.shopName = await getSet('shopName'); S.address = await getSet('address');
+  S.footer = await getSet('footer'); S.logo = await getSet('logo');
+  $('#hName').textContent = S.shopName || 'Toko Saya';
+  document.title = S.shopName || 'Catatan Penjualan';
+  const h = $('#hLogo'); if (S.logo) { h.src = S.logo; h.hidden = false; } else { h.hidden = true; }
+  $('#logoPrev').src = S.logo || 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
+}
+
+/* ========== Navigasi ========== */
+$$('nav button').forEach(b => b.onclick = () => {
+  $$('nav button').forEach(x => x.classList.toggle('on', x === b));
+  $$('.tab').forEach(t => t.classList.toggle('active', t.id === 'tab-' + b.dataset.tab));
+  if (b.dataset.tab === 'laporan') renderReport();
+  if (b.dataset.tab === 'produk') renderProdList();
+  if (b.dataset.tab === 'setting') renderSbStatus();
+  window.scrollTo(0, 0);
+});
+
+/* ========== Kasir ========== */
+function renderProducts(){
+  const q = $('#q').value.trim().toLowerCase();
+  const list = products.filter(p => !q || p.name.toLowerCase().includes(q) || (p.code || '').toLowerCase().includes(q));
+  $('#plist').innerHTML = list.length ? list.map(p => {
+    const out = p.stock != null && p.stock <= 0;
+    return `<button class="prod ${out ? 'out' : ''}" data-id="${p.id}"><span class="n">${esc(p.name)}</span><span class="p">${fmt(p.price)}</span><span class="s">${p.stock == null ? '' : (out ? 'Habis' : 'Stok ' + p.stock)}</span></button>`;
+  }).join('') : '<p class="muted">Belum ada produk. Tambahkan di tab Produk.</p>';
+}
+$('#plist').onclick = e => { const b = e.target.closest('.prod'); if (b) addToCart(b.dataset.id); };
+$('#q').oninput = renderProducts;
+$('#q').onkeydown = e => {
+  if (e.key !== 'Enter') return;
+  const v = e.target.value.trim().toLowerCase(); if (!v) return;
+  const exact = products.find(p => (p.code || '').toLowerCase() === v);
+  if (exact) { addToCart(exact.id); e.target.value = ''; renderProducts(); }
+};
+
+function addToCart(id, d = 1){
+  const p = products.find(x => x.id === id); if (!p) return;
+  const q = (cart[id] || 0) + d;
+  if (q <= 0) delete cart[id];
+  else {
+    if (p.stock != null && q > p.stock) { toast('Stok tidak cukup'); return; }
+    cart[id] = q;
+  }
+  renderCart();
+}
+function cartLines(){
+  return Object.entries(cart).map(([id, qty]) => {
+    const p = products.find(x => x.id === id); return p ? {id, name:p.name, price:p.price, qty} : null;
+  }).filter(Boolean);
+}
+const cartTotal = () => cartLines().reduce((a, l) => a + l.price * l.qty, 0);
+function renderCart(){
+  const lines = cartLines();
+  $('#cartList').innerHTML = lines.length ? lines.map(l => `
+    <div class="line"><div class="nm">${esc(l.name)}<small>${fmt(l.price)} × ${l.qty} = ${fmt(l.price * l.qty)}</small></div>
+    <div class="qty"><button data-d="-1" data-id="${l.id}">−</button><b>${l.qty}</b><button data-d="1" data-id="${l.id}">+</button></div></div>`).join('')
+    : '<p class="muted">Keranjang kosong. Ketuk barang untuk menambah.</p>';
+  const t = cartTotal();
+  $('#cartTotal').textContent = fmt(t);
+  const opts = [...new Set([t, 5000, 10000, 20000, 50000, 100000].filter(v => v >= t && v > 0))].sort((a,b)=>a-b).slice(0, 5);
+  $('#quick').innerHTML = t ? opts.map(v => `<button data-v="${v}">${v === t ? 'Uang pas' : fmt(v)}</button>`).join('') : '';
+  updatePay();
+}
+$('#cartList').onclick = e => { const b = e.target.closest('button'); if (b) addToCart(b.dataset.id, Number(b.dataset.d)); };
+$('#quick').onclick = e => { const b = e.target.closest('button'); if (b) { $('#pay').value = b.dataset.v; updatePay(); } };
+$('#pay').oninput = updatePay;
+function updatePay(){
+  const t = cartTotal(), raw = $('#pay').value;
+  const paid = raw === '' ? t : Number(raw);
+  const diff = paid - t;
+  $('#chgLabel').textContent = diff < 0 ? 'Kurang' : 'Kembalian';
+  $('#chg').textContent = fmt(Math.abs(diff));
+  $('#chg').style.color = diff < 0 ? 'var(--bad)' : '';
+}
+function clearCart(){ cart = {}; $('#pay').value = ''; renderCart(); }
+$('#btnClear').onclick = () => { if (Object.keys(cart).length && confirm('Kosongkan keranjang?')) clearCart(); };
+
+async function saveSale(print){
+  const lines = cartLines(); if (!lines.length) { toast('Keranjang kosong'); return; }
+  const total = cartTotal(), raw = $('#pay').value;
+  const paid = raw === '' ? total : Number(raw);
+  if (paid < total) { toast('Uang diterima kurang'); return; }
+  const sale = {id: uuid(), created_at: nowISO(), total, paid, change_amount: paid - total, items: lines, synced: 0};
+  const touched = [];
+  lines.forEach(l => {
+    const p = allProducts.find(x => x.id === l.id);
+    if (p && p.stock != null) { touched.push({...p, stock: Math.max(0, p.stock - l.qty), updated_at: nowISO(), synced: 0}); }
+  });
+  await new Promise((res, rej) => {
+    const t = db.transaction(['sales', 'products'], 'readwrite');
+    t.objectStore('sales').put(sale);
+    touched.forEach(p => t.objectStore('products').put(p));
+    t.oncomplete = res; t.onerror = () => rej(t.error);
+  });
+  clearCart();
+  await loadData(); renderProducts(); updateBadge();
+  toast('Transaksi tersimpan');
+  if (print) printReceipt(sale);
+  trySync();
+}
+$('#btnSave').onclick = () => saveSale(false);
+$('#btnSavePrint').onclick = () => saveSale(true);
+
+/* ========== Struk ========== */
+function printReceipt(s){
+  const d = new Date(s.created_at).toLocaleString('id-ID', {dateStyle:'short', timeStyle:'short'});
+  $('#struk').innerHTML =
+    (S.logo ? `<img src="${S.logo}" alt="">` : '') +
+    `<h2>${esc(S.shopName || 'Toko Saya')}</h2>` +
+    (S.address ? `<div class="c">${esc(S.address).replace(/\n/g, '<br>')}</div>` : '') +
+    `<hr><div>${d}</div><div>No: ${s.id.slice(0, 8)}</div><hr>` +
+    s.items.map(i => `<div>${esc(i.name)}</div><div class="r"><span>${i.qty} × ${Math.round(i.price).toLocaleString('id-ID')}</span><span>${Math.round(i.price * i.qty).toLocaleString('id-ID')}</span></div>`).join('') +
+    `<hr><div class="r"><b>TOTAL</b><b>${Math.round(s.total).toLocaleString('id-ID')}</b></div>` +
+    `<div class="r"><span>Bayar</span><span>${Math.round(s.paid).toLocaleString('id-ID')}</span></div>` +
+    `<div class="r"><span>Kembali</span><span>${Math.round(s.change_amount).toLocaleString('id-ID')}</span></div>` +
+    `<hr><div class="c">${esc(S.footer || 'Terima kasih')}</div>`;
+  const img = $('#struk img');
+  const go = () => setTimeout(() => window.print(), 150);
+  if (img && !img.complete) { img.onload = go; img.onerror = go; } else go();
+}
+
+/* ========== Produk ========== */
+function renderProdList(){
+  const q = $('#pq').value.trim().toLowerCase();
+  const list = products.filter(p => !q || p.name.toLowerCase().includes(q) || (p.code || '').toLowerCase().includes(q));
+  $('#prodList').innerHTML = list.length ? list.map(p => `
+    <div class="li" data-id="${p.id}"><div>${esc(p.name)}<small>${p.code ? esc(p.code) + ' · ' : ''}${p.stock == null ? 'Stok tidak dihitung' : 'Stok ' + p.stock}</small></div><b>${fmt(p.price)}</b></div>`).join('')
+    : '<p class="muted">Belum ada produk.</p>';
+}
+$('#pq').oninput = renderProdList;
+$('#prodList').onclick = e => { const r = e.target.closest('.li'); if (r) openProd(r.dataset.id); };
+$('#btnAddProd').onclick = () => openProd(null);
+function openProd(id){
+  editingId = id;
+  const p = id ? products.find(x => x.id === id) : null;
+  $('#dpTitle').textContent = p ? 'Ubah Produk' : 'Produk Baru';
+  $('#pName').value = p ? p.name : ''; $('#pCode').value = p ? (p.code || '') : '';
+  $('#pPrice').value = p ? p.price : ''; $('#pStock').value = p && p.stock != null ? p.stock : '';
+  $('#dpDelete').hidden = !p;
+  $('#dlgProd').showModal();
+}
+$('#dpCancel').onclick = () => $('#dlgProd').close();
+$('#fProd').onsubmit = async e => {
+  e.preventDefault();
+  const old = editingId ? allProducts.find(x => x.id === editingId) : null;
+  const stockRaw = $('#pStock').value;
+  const p = {
+    id: old ? old.id : uuid(), name: $('#pName').value.trim(), code: $('#pCode').value.trim(),
+    price: Number($('#pPrice').value) || 0, stock: stockRaw === '' ? null : Math.max(0, Math.floor(Number(stockRaw))),
+    deleted: false, updated_at: nowISO(), synced: 0
+  };
+  if (!p.name) return;
+  await dbPutMany('products', [p]);
+  $('#dlgProd').close();
+  await loadData(); renderProducts(); renderProdList(); updateBadge(); toast('Produk disimpan'); trySync();
+};
+$('#dpDelete').onclick = async () => {
+  const old = allProducts.find(x => x.id === editingId); if (!old) return;
+  if (!confirm('Hapus produk "' + old.name + '"? Riwayat transaksi tetap aman.')) return;
+  await dbPutMany('products', [{...old, deleted: true, updated_at: nowISO(), synced: 0}]);
+  delete cart[old.id];
+  $('#dlgProd').close();
+  await loadData(); renderProducts(); renderProdList(); renderCart(); updateBadge(); trySync();
+};
+
+/* ========== Laporan ========== */
+function range(){
+  return [new Date($('#dFrom').value + 'T00:00:00'), new Date($('#dTo').value + 'T23:59:59.999')];
+}
+function reportSales(){
+  const [a, b] = range();
+  return sales.filter(s => { const d = new Date(s.created_at); return d >= a && d <= b; });
+}
+function renderReport(){
+  const list = reportSales();
+  const omzet = list.reduce((x, s) => x + s.total, 0);
+  const items = list.reduce((x, s) => x + s.items.reduce((y, i) => y + i.qty, 0), 0);
+  $('#stOmzet').textContent = fmt(omzet); $('#stTrx').textContent = list.length; $('#stItem').textContent = items;
+  const agg = {};
+  list.forEach(s => s.items.forEach(i => { const k = i.name; agg[k] = agg[k] || {qty:0, sum:0}; agg[k].qty += i.qty; agg[k].sum += i.qty * i.price; }));
+  const top = Object.entries(agg).sort((a, b) => b[1].qty - a[1].qty).slice(0, 5);
+  $('#top').innerHTML = top.length ? top.map(([n, v]) => `<div class="li" style="cursor:default"><span>${esc(n)}</span><span>${v.qty} pcs · ${fmt(v.sum)}</span></div>`).join('') : '<p class="muted">Belum ada data.</p>';
+  $('#saleList').innerHTML = list.length ? list.map(s => `
+    <div class="li" data-id="${s.id}"><div>${new Date(s.created_at).toLocaleString('id-ID', {dateStyle:'short', timeStyle:'short'})}<small>${s.items.length} jenis barang · <span class="${s.synced ? 'ok' : 'wait'}">${s.synced ? '✓ terkirim' : '⏳ menunggu kirim'}</span></small></div><b>${fmt(s.total)}</b></div>`).join('')
+    : '<p class="muted">Tidak ada transaksi pada rentang ini.</p>';
+}
+$('#dFrom').value = $('#dTo').value = todayStr();
+$('#dFrom').onchange = $('#dTo').onchange = renderReport;
+$('#saleList').onclick = e => {
+  const r = e.target.closest('.li'); if (!r) return;
+  viewingSale = sales.find(s => s.id === r.dataset.id); if (!viewingSale) return;
+  const s = viewingSale;
+  $('#saleDetail').innerHTML = `<div class="muted">${new Date(s.created_at).toLocaleString('id-ID')}</div>` +
+    s.items.map(i => `<div class="line"><div class="nm">${esc(i.name)}<small>${fmt(i.price)} × ${i.qty}</small></div><b>${fmt(i.price * i.qty)}</b></div>`).join('') +
+    `<div class="total"><span>Total</span><span>${fmt(s.total)}</span></div><div class="muted">Bayar ${fmt(s.paid)} · Kembali ${fmt(s.change_amount)}</div>`;
+  $('#dlgSale').showModal();
+};
+$('#dsClose').onclick = () => $('#dlgSale').close();
+$('#dsPrint').onclick = () => { $('#dlgSale').close(); if (viewingSale) printReceipt(viewingSale); };
+
+function download(name, text, type){
+  const blob = new Blob([text], {type}); const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+$('#btnCsv').onclick = () => {
+  const list = reportSales(); if (!list.length) { toast('Tidak ada data'); return; }
+  const q = v => '"' + String(v).replace(/"/g, '""') + '"';
+  const rows = [['Tanggal', 'No Transaksi', 'Produk', 'Qty', 'Harga', 'Subtotal', 'Total Transaksi']];
+  [...list].reverse().forEach(s => s.items.forEach(i => rows.push([new Date(s.created_at).toLocaleString('id-ID'), s.id.slice(0, 8), i.name, i.qty, i.price, i.price * i.qty, s.total])));
+  download('laporan-' + $('#dFrom').value + '_sd_' + $('#dTo').value + '.csv', '\uFEFF' + rows.map(r => r.map(q).join(',')).join('\r\n'), 'text/csv;charset=utf-8');
+};
+
+/* ========== Pengaturan toko ========== */
+function fileToLogo(file){
+  return new Promise((res, rej) => {
+    const img = new Image(), u = URL.createObjectURL(file);
+    img.onload = () => {
+      const m = 256, sc = Math.min(1, m / Math.max(img.width, img.height));
+      const c = document.createElement('canvas'); c.width = Math.round(img.width * sc); c.height = Math.round(img.height * sc);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(u); res(c.toDataURL('image/png'));
+    };
+    img.onerror = () => { URL.revokeObjectURL(u); rej(new Error('Gambar tidak bisa dibaca')); };
+    img.src = u;
+  });
+}
+$('#logoFile').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try { await setSet('logo', await fileToLogo(f)); await loadShop(); toast('Logo diperbarui'); }
+  catch (err) { toast(err.message); }
+  e.target.value = '';
+};
+$('#btnLogoDel').onclick = async () => { await delSet('logo'); await loadShop(); toast('Logo dihapus'); };
+$('#btnSaveShop').onclick = async () => {
+  await setSet('shopName', $('#sName').value.trim()); await setSet('address', $('#sAddr').value.trim()); await setSet('footer', $('#sFoot').value.trim());
+  await loadShop(); toast('Identitas toko disimpan');
+};
+
+/* ========== Backup ========== */
+$('#btnBackup').onclick = async () => {
+  const data = {app:'toko-app', version:1, exported_at:nowISO(), products:allProducts, sales,
+    shop:{shopName:S.shopName, address:S.address, footer:S.footer, logo:S.logo}};
+  download('backup-toko-' + todayStr() + '.json', JSON.stringify(data), 'application/json');
+};
+$('#btnRestore').onclick = () => $('#restoreFile').click();
+$('#restoreFile').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return; e.target.value = '';
+  try {
+    const d = JSON.parse(await f.text());
+    if (d.app !== 'toko-app') throw new Error('Bukan file backup aplikasi ini');
+    if (!confirm('Gabungkan data backup ke aplikasi? Data dengan ID sama akan ditimpa.')) return;
+    await dbPutMany('products', (d.products || []).map(p => ({...p, synced: 0})));
+    await dbPutMany('sales', (d.sales || []).map(s => ({...s, synced: 0})));
+    if (d.shop) for (const k of ['shopName', 'address', 'footer', 'logo']) if (d.shop[k]) await setSet(k, d.shop[k]);
+    await loadShop(); await loadData(); renderProducts(); renderProdList(); updateBadge(); toast('Backup dipulihkan'); trySync();
+  } catch (err) { toast('Gagal: ' + err.message); }
+};
+
+/* ========== Supabase (REST langsung, tanpa library) ========== */
+async function cfg(){ return {url:(await getSet('sbUrl')).trim().replace(/\/+$/, ''), key:(await getSet('sbKey')).trim()}; }
+async function saveSession(j, email){
+  const s = {access_token:j.access_token, refresh_token:j.refresh_token, expires_at:j.expires_at || (Math.floor(Date.now() / 1000) + j.expires_in), email};
+  await setSet('session', s); return s;
+}
+async function getToken(){
+  let s = await getSet('session', null); if (!s) return null;
+  if (s.expires_at * 1000 - Date.now() > 60000) return s.access_token;
+  const {url, key} = await cfg();
+  try {
+    const r = await fetch(url + '/auth/v1/token?grant_type=refresh_token', {method:'POST', headers:{apikey:key, 'Content-Type':'application/json'}, body:JSON.stringify({refresh_token:s.refresh_token})});
+    if (!r.ok) return null;
+    s = await saveSession(await r.json(), s.email); return s.access_token;
+  } catch { return null; }
+}
+$('#btnSbSave').onclick = async () => { await setSet('sbUrl', $('#sbUrl').value.trim()); await setSet('sbKey', $('#sbKey').value.trim()); toast('Koneksi disimpan'); renderSbStatus(); updateBadge(); };
+$('#btnLogin').onclick = async () => {
+  await setSet('sbUrl', $('#sbUrl').value.trim()); await setSet('sbKey', $('#sbKey').value.trim());
+  const {url, key} = await cfg(); const email = $('#sbEmail').value.trim(), password = $('#sbPass').value;
+  if (!url || !key || !email || !password) { toast('Lengkapi URL, key, email, dan password'); return; }
+  if (!navigator.onLine) { toast('Perlu internet untuk login'); return; }
+  try {
+    const r = await fetch(url + '/auth/v1/token?grant_type=password', {method:'POST', headers:{apikey:key, 'Content-Type':'application/json'}, body:JSON.stringify({email, password})});
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error_description || j.msg || 'Login gagal');
+    await saveSession(j, email); $('#sbPass').value = ''; toast('Login berhasil'); renderSbStatus(); trySync(true);
+  } catch (err) { toast(err.message); }
+};
+$('#btnLogout').onclick = async () => { await delSet('session'); toast('Sudah keluar'); renderSbStatus(); updateBadge(); };
+$('#btnSyncNow').onclick = () => trySync(true);
+async function renderSbStatus(){
+  const s = await getSet('session', null), {url} = await cfg();
+  $('#sbStatus').textContent = !url ? 'Belum terhubung.' : (s ? 'Login sebagai ' + s.email + '.' : 'Belum login.');
+}
+
+let syncing = false;
+const pendingCount = () => allProducts.filter(p => !p.synced).length + sales.filter(s => !s.synced).length;
+async function updateBadge(msg){
+  const b = $('#badge'), {url, key} = await cfg(), n = pendingCount();
+  if (msg) { b.textContent = msg; return; }
+  if (!url || !key) b.textContent = navigator.onLine ? 'Lokal saja' : 'Offline';
+  else if (!navigator.onLine) b.textContent = 'Offline' + (n ? ' · ' + n + ' menunggu' : '');
+  else b.textContent = n ? n + ' menunggu kirim' : '✓ Tersinkron';
+}
+async function push(url, H, table, rows){
+  for (let i = 0; i < rows.length; i += 200) {
+    const chunk = rows.slice(i, i + 200).map(({synced, ...r}) => r);
+    const r = await fetch(`${url}/rest/v1/${table}?on_conflict=id`, {method:'POST', headers:{...H, Prefer:'resolution=merge-duplicates,return=minimal'}, body:JSON.stringify(chunk)});
+    if (!r.ok) throw new Error(table + ': ' + (await r.text()).slice(0, 120));
+  }
+}
+async function markSynced(store, rows){
+  await new Promise((res, rej) => {
+    const t = db.transaction(store, 'readwrite'), s = t.objectStore(store);
+    rows.forEach(row => { const g = s.get(row.id); g.onsuccess = () => { const cur = g.result; if (cur && cur.updated_at === row.updated_at) { cur.synced = 1; s.put(cur); } }; });
+    t.oncomplete = res; t.onerror = () => rej(t.error);
+  });
+}
+async function pull(url, H, table, lastKey){
+  let last = await getSet(lastKey, '1970-01-01T00:00:00Z');
+  for (;;) {
+    const r = await fetch(`${url}/rest/v1/${table}?synced_at=gt.${encodeURIComponent(last)}&order=synced_at.asc&limit=500`, {headers:H});
+    if (!r.ok) throw new Error(table + ': ' + (await r.text()).slice(0, 120));
+    const rows = await r.json(); if (!rows.length) break;
+    if (table === 'products') {
+      const put = [];
+      rows.forEach(rm => {
+        const loc = allProducts.find(p => p.id === rm.id);
+        if (!loc || new Date(rm.updated_at) > new Date(loc.updated_at))
+          put.push({id:rm.id, code:rm.code || '', name:rm.name, price:Number(rm.price), stock:rm.stock == null ? null : Number(rm.stock), deleted:!!rm.deleted, updated_at:rm.updated_at, synced:1});
+      });
+      if (put.length) await dbPutMany('products', put);
+    } else {
+      const have = new Set(sales.map(s => s.id));
+      const put = rows.filter(rm => !have.has(rm.id)).map(rm => ({id:rm.id, created_at:rm.created_at, total:Number(rm.total), paid:Number(rm.paid), change_amount:Number(rm.change_amount), items:rm.items, synced:1}));
+      if (put.length) await dbPutMany('sales', put);
+    }
+    last = rows[rows.length - 1].synced_at; await setSet(lastKey, last);
+    await loadData();
+    if (rows.length < 500) break;
+  }
+}
+async function trySync(manual){
+  if (syncing) return;
+  const {url, key} = await cfg();
+  if (!url || !key) { if (manual) toast('Isi koneksi Supabase di Pengaturan'); return; }
+  if (!navigator.onLine) { if (manual) toast('Sedang offline'); updateBadge(); return; }
+  const token = await getToken();
+  if (!token) { if (manual) toast('Login Supabase dulu di Pengaturan'); updateBadge('Perlu login'); return; }
+  syncing = true; updateBadge('Menyinkronkan…');
+  try {
+    const H = {apikey:key, Authorization:'Bearer ' + token, 'Content-Type':'application/json'};
+    const pp = allProducts.filter(p => !p.synced); if (pp.length) { await push(url, H, 'products', pp); await markSynced('products', pp); }
+    const ps = sales.filter(s => !s.synced);
+    if (ps.length) { await push(url, H, 'sales', ps); await markSynced('sales', ps); }
+    await loadData();
+    await pull(url, H, 'products', 'lastPullP');
+    await pull(url, H, 'sales', 'lastPullS');
+    await loadData(); renderProducts(); renderProdList(); renderCart();
+    if ($('#tab-laporan').classList.contains('active')) renderReport();
+    if (manual) toast('Sinkronisasi selesai');
+  } catch (err) { console.error(err); if (manual) toast('Gagal sinkron: ' + err.message); }
+  finally { syncing = false; updateBadge(); }
+}
+window.addEventListener('online', () => { updateBadge(); trySync(); });
+window.addEventListener('offline', () => updateBadge());
+setInterval(() => trySync(), 60000);
+
+/* ========== Mulai ========== */
+(async function init(){
+  db = await openDB();
+  await loadShop(); await loadData();
+  $('#sName').value = S.shopName; $('#sAddr').value = S.address; $('#sFoot').value = S.footer;
+  $('#sbUrl').value = await getSet('sbUrl'); $('#sbKey').value = await getSet('sbKey');
+  const ses = await getSet('session', null); if (ses) $('#sbEmail').value = ses.email || '';
+  renderProducts(); renderCart(); renderProdList(); renderSbStatus(); updateBadge();
+  if (!S.shopName) toast('Atur nama & logo toko di tab Pengaturan');
+  setTimeout(() => trySync(), 2000);
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(console.error);
+})();
+</script>
+</body>
+</html>

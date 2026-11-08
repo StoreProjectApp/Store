@@ -1,0 +1,16 @@
+{
+  "name": "Catatan Penjualan",
+  "short_name": "Penjualan",
+  "description": "Aplikasi kasir dan pencatatan penjualan toko, bisa dipakai offline.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f4f6f8",
+  "theme_color": "#0f766e",
+  "lang": "id",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
