@@ -164,7 +164,7 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 
     <div class="card">
       <h2>Sinkronisasi Supabase (opsional)</h2>
-      <p class="muted" style="margin-top:0">Tanpa pengaturan ini aplikasi tetap bekerja penuh, data hanya tersimpan di perangkat ini.</p>
+      <p class="muted" style="margin-top:0">Koneksi sudah terisi. Cukup login dengan email toko Anda. Setiap email punya data sendiri, tidak tercampur dengan toko lain. Tanpa login, aplikasi tetap bekerja penuh dan data hanya tersimpan di perangkat ini.</p>
       <label>Project URL</label><input id="sbUrl" placeholder="https://xxxx.supabase.co" autocapitalize="off">
       <label>Anon public key</label><input id="sbKey" autocapitalize="off">
       <button class="btn alt" id="btnSbSave" style="margin-top:10px;width:100%">Simpan koneksi</button>
@@ -508,16 +508,18 @@ function fileToLogo(file){
     img.src = u;
   });
 }
+// Tandai identitas toko berubah supaya ikut terkirim ke server (dan tampil di HP lain milik toko yang sama)
+const touchShop = async () => { await setSet('shopUpdatedAt', nowISO()); await setSet('shopDirty', 1); };
 $('#logoFile').onchange = async e => {
   const f = e.target.files[0]; if (!f) return;
-  try { await setSet('logo', await fileToLogo(f)); await loadShop(); toast('Logo diperbarui'); }
+  try { await setSet('logo', await fileToLogo(f)); await touchShop(); await loadShop(); toast('Logo diperbarui'); trySync(); }
   catch (err) { toast(err.message); }
   e.target.value = '';
 };
-$('#btnLogoDel').onclick = async () => { await delSet('logo'); await loadShop(); toast('Logo dihapus'); };
+$('#btnLogoDel').onclick = async () => { await delSet('logo'); await touchShop(); await loadShop(); toast('Logo dihapus'); trySync(); };
 $('#btnSaveShop').onclick = async () => {
   await setSet('shopName', $('#sName').value.trim()); await setSet('address', $('#sAddr').value.trim()); await setSet('footer', $('#sFoot').value.trim());
-  await loadShop(); toast('Identitas toko disimpan');
+  await touchShop(); await loadShop(); toast('Identitas toko disimpan'); trySync();
 };
 
 /* ========== Backup ========== */
@@ -535,13 +537,31 @@ $('#restoreFile').onchange = async e => {
     if (!confirm('Gabungkan data backup ke aplikasi? Data dengan ID sama akan ditimpa.')) return;
     await dbPutMany('products', (d.products || []).map(p => ({...p, synced: 0})));
     await dbPutMany('sales', (d.sales || []).map(s => ({...s, synced: 0})));
-    if (d.shop) for (const k of ['shopName', 'address', 'footer', 'logo']) if (d.shop[k]) await setSet(k, d.shop[k]);
+    if (d.shop) { for (const k of ['shopName', 'address', 'footer', 'logo']) if (d.shop[k]) await setSet(k, d.shop[k]); await touchShop(); }
     await loadShop(); await loadData(); renderProducts(); renderProdList(); updateBadge(); toast('Backup dipulihkan'); trySync();
   } catch (err) { toast('Gagal: ' + err.message); }
 };
 
 /* ========== Supabase (REST langsung, tanpa library) ========== */
-async function cfg(){ return {url:(await getSet('sbUrl')).trim().replace(/\/+$/, ''), key:(await getSet('sbKey')).trim()}; }
+// Satu proyek Supabase untuk semua toko. Kunci "publishable" memang dirancang publik;
+// data tiap toko dipisahkan oleh Row Level Security berdasarkan akun (email) yang login.
+const DEFAULT_URL = 'https://uyrkzzdtxyjkmfefslzz.supabase.co';
+const DEFAULT_KEY = 'sb_publishable_qRwv4TU4Ml_vxPPGy7YKVA_RsJm32kp';
+async function cfg(){
+  return {url:((await getSet('sbUrl')).trim() || DEFAULT_URL).replace(/\/+$/, ''), key:(await getSet('sbKey')).trim() || DEFAULT_KEY};
+}
+// Hapus data lokal (dipakai saat perangkat dipindah ke toko/akun lain)
+async function wipeLocal(){
+  await new Promise((res, rej) => {
+    const t = db.transaction(['products', 'sales'], 'readwrite');
+    t.objectStore('products').clear(); t.objectStore('sales').clear();
+    t.oncomplete = res; t.onerror = () => rej(t.error);
+  });
+  for (const k of ['lastPullP', 'lastPullS', 'shopName', 'address', 'footer', 'logo', 'shopUpdatedAt', 'shopDirty']) await delSet(k);
+  cart = {}; await loadShop(); await loadData();
+  $('#sName').value = ''; $('#sAddr').value = ''; $('#sFoot').value = '';
+  renderProducts(); renderCart(); renderProdList(); updateBadge();
+}
 async function saveSession(j, email){
   const s = {access_token:j.access_token, refresh_token:j.refresh_token, expires_at:j.expires_at || (Math.floor(Date.now() / 1000) + j.expires_in), email};
   await setSet('session', s); return s;
@@ -566,10 +586,20 @@ $('#btnLogin').onclick = async () => {
     const r = await fetch(url + '/auth/v1/token?grant_type=password', {method:'POST', headers:{apikey:key, 'Content-Type':'application/json'}, body:JSON.stringify({email, password})});
     const j = await r.json();
     if (!r.ok) throw new Error(j.error_description || j.msg || 'Login gagal');
+    const owner = await getSet('dataOwner', '');
+    if (owner && owner.toLowerCase() !== email.toLowerCase()) {
+      const n = pendingCount();
+      if (!confirm('Data di perangkat ini milik "' + owner + '"' + (n ? ' dan ' + n + ' data di antaranya belum terkirim' : '') +
+        '. Masuk sebagai "' + email + '" akan MENGHAPUS data lokal di perangkat ini (data toko lama tetap aman di server jika sudah tersinkron). Lanjutkan?')) {
+        toast('Login dibatalkan'); return;
+      }
+      await wipeLocal();
+    }
+    await setSet('dataOwner', email);
     await saveSession(j, email); $('#sbPass').value = ''; toast('Login berhasil'); renderSbStatus(); trySync(true);
   } catch (err) { toast(err.message); }
 };
-$('#btnLogout').onclick = async () => { await delSet('session'); toast('Sudah keluar'); renderSbStatus(); updateBadge(); };
+$('#btnLogout').onclick = async () => { await delSet('session'); toast('Sudah keluar. Data lokal tetap ada di perangkat ini.'); renderSbStatus(); updateBadge(); };
 $('#btnSyncNow').onclick = () => trySync(true);
 async function renderSbStatus(){
   const s = await getSet('session', null), {url} = await cfg();
@@ -581,7 +611,7 @@ const pendingCount = () => allProducts.filter(p => !p.synced).length + sales.fil
 async function updateBadge(msg){
   const b = $('#badge'), {url, key} = await cfg(), n = pendingCount();
   if (msg) { b.textContent = msg; return; }
-  if (!url || !key) b.textContent = navigator.onLine ? 'Lokal saja' : 'Offline';
+  if (!url || !key || !(await getSet('session', null))) b.textContent = 'Lokal · belum login';
   else if (!navigator.onLine) b.textContent = 'Offline' + (n ? ' · ' + n + ' menunggu' : '');
   else b.textContent = n ? n + ' menunggu kirim' : '✓ Tersinkron';
 }
@@ -626,19 +656,38 @@ async function pull(url, H, table, lastKey){
 async function trySync(manual){
   if (syncing) return;
   const {url, key} = await cfg();
-  if (!url || !key) { if (manual) toast('Isi koneksi Supabase di Pengaturan'); return; }
+  if (!url || !key) { if (manual) toast('Koneksi belum diisi di Pengaturan'); return; }
   if (!navigator.onLine) { if (manual) toast('Sedang offline'); updateBadge(); return; }
   const token = await getToken();
-  if (!token) { if (manual) toast('Login Supabase dulu di Pengaturan'); updateBadge('Perlu login'); return; }
+  if (!token) { if (manual) toast('Login dulu di Pengaturan'); updateBadge((await getSet('session', null)) ? 'Perlu login ulang' : undefined); return; }
   syncing = true; updateBadge('Menyinkronkan…');
   try {
     const H = {apikey:key, Authorization:'Bearer ' + token, 'Content-Type':'application/json'};
     const pp = allProducts.filter(p => !p.synced); if (pp.length) { await push(url, H, 'products', pp); await markSynced('products', pp); }
     const ps = sales.filter(s => !s.synced);
     if (ps.length) { await push(url, H, 'sales', ps); await markSynced('sales', ps); }
+    // Identitas toko (nama, logo, alamat, catatan struk)
+    if (await getSet('shopDirty', 0)) {
+      const stamp = await getSet('shopUpdatedAt', '');
+      const body = {shop_name:await getSet('shopName'), address:await getSet('address'), footer:await getSet('footer'), logo:await getSet('logo'), updated_at:stamp || nowISO()};
+      const r = await fetch(`${url}/rest/v1/shop_settings?on_conflict=owner_id`, {method:'POST', headers:{...H, Prefer:'resolution=merge-duplicates,return=minimal'}, body:JSON.stringify(body)});
+      if (!r.ok) throw new Error('shop_settings: ' + (await r.text()).slice(0, 120));
+      if ((await getSet('shopUpdatedAt', '')) === stamp) await setSet('shopDirty', 0);
+    }
     await loadData();
     await pull(url, H, 'products', 'lastPullP');
     await pull(url, H, 'sales', 'lastPullS');
+    if (!(await getSet('shopDirty', 0))) {
+      const r = await fetch(`${url}/rest/v1/shop_settings?select=*&limit=1`, {headers:H});
+      if (!r.ok) throw new Error('shop_settings: ' + (await r.text()).slice(0, 120));
+      const [row] = await r.json();
+      if (row && new Date(row.updated_at) > new Date(await getSet('shopUpdatedAt', '1970-01-01T00:00:00Z'))) {
+        await setSet('shopName', row.shop_name || ''); await setSet('address', row.address || ''); await setSet('footer', row.footer || '');
+        if (row.logo) await setSet('logo', row.logo); else await delSet('logo');
+        await setSet('shopUpdatedAt', row.updated_at);
+        await loadShop(); $('#sName').value = S.shopName; $('#sAddr').value = S.address; $('#sFoot').value = S.footer;
+      }
+    }
     await loadData(); renderProducts(); renderProdList(); renderCart();
     if ($('#tab-laporan').classList.contains('active')) renderReport();
     if (manual) toast('Sinkronisasi selesai');
@@ -654,7 +703,7 @@ setInterval(() => trySync(), 60000);
   db = await openDB();
   await loadShop(); await loadData();
   $('#sName').value = S.shopName; $('#sAddr').value = S.address; $('#sFoot').value = S.footer;
-  $('#sbUrl').value = await getSet('sbUrl'); $('#sbKey').value = await getSet('sbKey');
+  { const c = await cfg(); $('#sbUrl').value = c.url; $('#sbKey').value = c.key; }
   const ses = await getSet('session', null); if (ses) $('#sbEmail').value = ses.email || '';
   renderProducts(); renderCart(); renderProdList(); renderSbStatus(); updateBadge();
   if (!S.shopName) toast('Atur nama & logo toko di tab Pengaturan');

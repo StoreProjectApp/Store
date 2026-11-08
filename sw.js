@@ -1,6 +1,6 @@
 // Service Worker: aplikasi tetap terbuka saat offline.
 // Strategi: coba jaringan dulu (agar update kode cepat terpakai), jika gagal pakai salinan di HP.
-const CACHE = 'toko-v1';
+const CACHE = 'toko-v2';
 const ASSETS = ['./', './index.html', './manifest.json', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', e => {
