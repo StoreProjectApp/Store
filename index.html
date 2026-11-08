@@ -58,10 +58,19 @@ button.btn:disabled{opacity:.5}
 .stat div{background:#f0f7f6;border-radius:10px;padding:10px}
 .stat b{display:block;font-size:16px}
 .stat span{font-size:12px;color:var(--muted)}
-dialog{border:0;border-radius:14px;padding:16px;width:min(440px,94vw)}
+dialog{border:0;border-radius:14px;padding:16px;width:min(440px,94vw);max-height:92vh;overflow:auto}
 dialog::backdrop{background:rgba(0,0,0,.45)}
 #toast{position:fixed;left:50%;bottom:80px;transform:translateX(-50%);background:#1c2530;color:#fff;padding:9px 16px;border-radius:99px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:20;max-width:90vw;text-align:center}
 #toast.show{opacity:1}
+.rv-cust{display:flex;justify-content:space-between;gap:8px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+#rvMsg,#invStatus{min-height:18px;margin:8px 0 0;font-size:13px;color:var(--bad)}
+#invStatus{color:var(--muted)}
+#dlgInvoice{width:min(500px,94vw)}
+#invImg{width:100%;height:auto;min-height:60px;border:1px solid var(--line);border-radius:8px;display:block;background:#fff}
+.banner{background:#e7f6ec;color:var(--ok);font-weight:600;padding:8px 12px;border-radius:8px;margin-bottom:10px}
+.btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.btns .full{grid-column:1/-1}
+details summary{cursor:pointer;color:var(--muted);margin-top:12px;font-size:13px}
 #logoPrev{width:84px;height:84px;object-fit:contain;border:1px dashed var(--line);border-radius:10px;background:#fff}
 .ok{color:var(--ok)}.wait{color:var(--warn)}
 #struk{display:none}
@@ -96,16 +105,16 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
       </div>
       <div class="card">
         <h2>Keranjang</h2>
+        <label for="cust" style="margin-top:0">Nama pelanggan</label>
+        <input id="cust" list="custList" placeholder="Nama pelanggan (opsional)" autocomplete="off" style="margin-bottom:8px">
+        <datalist id="custList"></datalist>
         <div id="cartList"></div>
         <div class="total"><span>Total</span><span id="cartTotal">Rp 0</span></div>
         <label for="pay">Uang diterima</label>
         <input id="pay" type="number" inputmode="numeric" min="0" placeholder="Kosongkan jika uang pas">
         <div class="chips" id="quick"></div>
         <div class="total" style="font-size:15px;padding-top:0"><span id="chgLabel">Kembalian</span><span id="chg">Rp 0</span></div>
-        <div class="row">
-          <button class="btn alt" id="btnSave">Simpan</button>
-          <button class="btn" id="btnSavePrint">Simpan & Cetak</button>
-        </div>
+        <button class="btn" id="btnSave" style="width:100%">Simpan</button>
         <button class="btn danger" id="btnClear" style="width:100%;margin-top:8px">Kosongkan keranjang</button>
       </div>
     </div>
@@ -144,6 +153,17 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
     </div>
   </section>
 
+  <!-- INVOICE -->
+  <section class="tab" id="tab-invoice">
+    <div class="card">
+      <h2>Buat Invoice (Gambar)</h2>
+      <p class="muted" style="margin-top:0">Pilih transaksi untuk membuat invoice berupa gambar. Dari sana bisa diunduh, dibagikan, atau dicetak.</p>
+      <input id="iq" type="search" placeholder="Cari nama pelanggan, no. invoice, atau tanggal...">
+      <div id="invList" style="margin-top:8px"></div>
+      <p class="muted">Menampilkan maksimal 50 transaksi terbaru. Gunakan pencarian untuk yang lebih lama.</p>
+    </div>
+  </section>
+
   <!-- PENGATURAN -->
   <section class="tab" id="tab-setting">
     <div class="card">
@@ -160,6 +180,14 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
       <label>Alamat / telepon (tampil di struk)</label><textarea id="sAddr" rows="2"></textarea>
       <label>Catatan bawah struk</label><input id="sFoot" placeholder="Terima kasih atas kunjungan Anda">
       <button class="btn" id="btnSaveShop" style="margin-top:12px;width:100%">Simpan identitas toko</button>
+    </div>
+
+    <div class="card">
+      <h2>Printer Struk / Invoice</h2>
+      <label for="sPaper">Lebar kertas printer</label>
+      <select id="sPaper"><option value="58">58 mm (kecil)</option><option value="80">80 mm (besar)</option></select>
+      <button class="btn alt" id="btnBtTest" style="margin-top:10px;width:100%">Tes printer Bluetooth</button>
+      <p class="muted">Cetak langsung lewat Bluetooth memakai Chrome di Android dan printer thermal yang mendukung BLE. Pengaturan ini disimpan per perangkat.</p>
     </div>
 
     <div class="card">
@@ -193,6 +221,7 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 <nav>
   <button data-tab="kasir" class="on"><b>🛒</b>Kasir</button>
   <button data-tab="produk"><b>📦</b>Produk</button>
+  <button data-tab="invoice"><b>🧾</b>Invoice</button>
   <button data-tab="laporan"><b>📊</b>Laporan</button>
   <button data-tab="setting"><b>⚙️</b>Pengaturan</button>
 </nav>
@@ -219,8 +248,40 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
   <div id="saleDetail"></div>
   <div class="row" style="margin-top:12px">
     <button class="btn alt" id="dsClose">Tutup</button>
-    <button class="btn" id="dsPrint">Cetak ulang</button>
+    <button class="btn" id="dsPrint">Invoice / Cetak</button>
   </div>
+</dialog>
+
+<!-- Dialog cek transaksi (sebelum disimpan) -->
+<dialog id="dlgReview">
+  <h2 style="margin-top:0">Periksa Transaksi</h2>
+  <p class="muted" style="margin-top:0">Pastikan data sudah benar. Transaksi belum tersimpan sampai Anda menekan "Simpan transaksi".</p>
+  <div id="rvBody"></div>
+  <p id="rvMsg"></p>
+  <div class="row" style="margin-top:12px">
+    <button class="btn alt" id="rvBack">Kembali</button>
+    <button class="btn" id="rvOk">Simpan transaksi</button>
+  </div>
+</dialog>
+
+<!-- Dialog invoice: gambar + pilihan cetak -->
+<dialog id="dlgInvoice">
+  <div class="banner" id="invBanner" hidden>✓ Transaksi tersimpan</div>
+  <img id="invImg" alt="Invoice">
+  <p id="invStatus"></p>
+  <div class="btns">
+    <button class="btn full" id="invBt">🖨 Cetak ke Printer Bluetooth</button>
+    <button class="btn alt" id="invDownload">🖼 Unduh gambar</button>
+    <button class="btn alt" id="invShare">📤 Bagikan</button>
+  </div>
+  <details>
+    <summary>Cara cetak lain</summary>
+    <div class="btns">
+      <button class="btn alt" id="invRawbt">RawBT (printer klasik)</button>
+      <button class="btn alt" id="invPrint">Cetak lewat browser</button>
+    </div>
+  </details>
+  <button class="btn alt" id="invClose" style="width:100%;margin-top:12px">Tutup</button>
 </dialog>
 
 <div id="struk"></div>
@@ -271,17 +332,19 @@ const delSet = k => new Promise((res, rej) => { const t = db.transaction('settin
 /* ========== State ========== */
 let allProducts = [], products = [], sales = [];
 let cart = {};            // productId -> qty
-let S = {shopName:'', address:'', footer:'', logo:''};
+let S = {shopName:'', address:'', footer:'', logo:'', paper:'58'};
 let editingId = null, viewingSale = null;
 
 async function loadData(){
   allProducts = await dbAll('products');
   products = allProducts.filter(p => !p.deleted).sort((a,b) => a.name.localeCompare(b.name, 'id'));
   sales = (await dbAll('sales')).sort((a,b) => b.created_at.localeCompare(a.created_at));
+  renderCustList();
 }
 async function loadShop(){
   S.shopName = await getSet('shopName'); S.address = await getSet('address');
   S.footer = await getSet('footer'); S.logo = await getSet('logo');
+  S.paper = await getSet('paper', '58'); $('#sPaper').value = S.paper;
   $('#hName').textContent = S.shopName || 'Toko Saya';
   document.title = S.shopName || 'Catatan Penjualan';
   const h = $('#hLogo'); if (S.logo) { h.src = S.logo; h.hidden = false; } else { h.hidden = true; }
@@ -293,6 +356,7 @@ $$('nav button').forEach(b => b.onclick = () => {
   $$('nav button').forEach(x => x.classList.toggle('on', x === b));
   $$('.tab').forEach(t => t.classList.toggle('active', t.id === 'tab-' + b.dataset.tab));
   if (b.dataset.tab === 'laporan') renderReport();
+  if (b.dataset.tab === 'invoice') renderInvList();
   if (b.dataset.tab === 'produk') renderProdList();
   if (b.dataset.tab === 'setting') renderSbStatus();
   window.scrollTo(0, 0);
@@ -355,43 +419,89 @@ function updatePay(){
   $('#chg').textContent = fmt(Math.abs(diff));
   $('#chg').style.color = diff < 0 ? 'var(--bad)' : '';
 }
-function clearCart(){ cart = {}; $('#pay').value = ''; renderCart(); }
+function clearCart(){ cart = {}; $('#pay').value = ''; $('#cust').value = ''; renderCart(); }
 $('#btnClear').onclick = () => { if (Object.keys(cart).length && confirm('Kosongkan keranjang?')) clearCart(); };
 
-async function saveSale(print){
+/* ========== Simpan: cek dulu, baru simpan ========== */
+const invNo = s => {
+  const d = new Date(s.created_at), p = n => String(n).padStart(2, '0');
+  return 'INV-' + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + '-' + s.id.slice(0, 4).toUpperCase();
+};
+const custName = s => (s.customer || '').trim() || 'Pelanggan umum';
+let draft = null;
+
+function renderCustList(){
+  const seen = new Set(), names = [];
+  for (const s of sales) {
+    const n = (s.customer || '').trim();
+    if (n && !seen.has(n.toLowerCase())) { seen.add(n.toLowerCase()); names.push(n); if (names.length >= 50) break; }
+  }
+  $('#custList').innerHTML = names.map(n => `<option value="${esc(n)}"></option>`).join('');
+}
+
+// Tahap 1: tombol Simpan hanya membuka halaman cek, belum menyimpan apa pun.
+function openReview(){
   const lines = cartLines(); if (!lines.length) { toast('Keranjang kosong'); return; }
   const total = cartTotal(), raw = $('#pay').value;
   const paid = raw === '' ? total : Number(raw);
   if (paid < total) { toast('Uang diterima kurang'); return; }
-  const sale = {id: uuid(), created_at: nowISO(), total, paid, change_amount: paid - total, items: lines, synced: 0};
-  const touched = [];
-  lines.forEach(l => {
-    const p = allProducts.find(x => x.id === l.id);
-    if (p && p.stock != null) { touched.push({...p, stock: Math.max(0, p.stock - l.qty), updated_at: nowISO(), synced: 0}); }
-  });
-  await new Promise((res, rej) => {
-    const t = db.transaction(['sales', 'products'], 'readwrite');
-    t.objectStore('sales').put(sale);
-    touched.forEach(p => t.objectStore('products').put(p));
-    t.oncomplete = res; t.onerror = () => rej(t.error);
-  });
-  clearCart();
-  await loadData(); renderProducts(); updateBadge();
-  toast('Transaksi tersimpan');
-  if (print) printReceipt(sale);
-  trySync();
+  draft = {lines, total, paid, customer: $('#cust').value.trim()};
+  $('#rvBody').innerHTML =
+    `<div class="rv-cust"><span class="muted">Pelanggan</span><b>${esc(draft.customer || 'Pelanggan umum')}</b></div>` +
+    lines.map(l => `<div class="line"><div class="nm">${esc(l.name)}<small>${fmt(l.price)} × ${l.qty}</small></div><b>${fmt(l.price * l.qty)}</b></div>`).join('') +
+    `<div class="total"><span>Total</span><span>${fmt(total)}</span></div>` +
+    `<div class="muted">Bayar ${fmt(paid)} · Kembali ${fmt(paid - total)}</div>`;
+  $('#rvMsg').textContent = '';
+  $('#dlgReview').showModal();
 }
-$('#btnSave').onclick = () => saveSale(false);
-$('#btnSavePrint').onclick = () => saveSale(true);
+$('#btnSave').onclick = openReview;
+$('#rvBack').onclick = () => $('#dlgReview').close();
 
-/* ========== Struk ========== */
+// Tahap 2: tombol "Simpan transaksi" di halaman cek baru benar-benar menyimpan.
+$('#rvOk').onclick = async () => {
+  if (!draft) return;
+  const btn = $('#rvOk'); btn.disabled = true;
+  try {
+    for (const l of draft.lines) {
+      const p = allProducts.find(x => x.id === l.id);
+      if (p && p.stock != null && l.qty > p.stock) {
+        $('#rvMsg').textContent = 'Stok "' + l.name + '" tinggal ' + p.stock + '. Kembali lalu ubah jumlahnya.'; return;
+      }
+    }
+    const sale = {id: uuid(), created_at: nowISO(), customer: draft.customer, total: draft.total, paid: draft.paid,
+      change_amount: draft.paid - draft.total, items: draft.lines, synced: 0};
+    const touched = [];
+    draft.lines.forEach(l => {
+      const p = allProducts.find(x => x.id === l.id);
+      if (p && p.stock != null) touched.push({...p, stock: Math.max(0, p.stock - l.qty), updated_at: nowISO(), synced: 0});
+    });
+    await new Promise((res, rej) => {
+      const t = db.transaction(['sales', 'products'], 'readwrite');
+      t.objectStore('sales').put(sale);
+      touched.forEach(p => t.objectStore('products').put(p));
+      t.oncomplete = res; t.onerror = () => rej(t.error);
+    });
+    draft = null;
+    $('#dlgReview').close();
+    clearCart();
+    await loadData(); renderProducts(); updateBadge();
+    openInvoice(sale, true);   // tampilkan pilihan cetak / gambar invoice
+    trySync();
+  } catch (err) { $('#rvMsg').textContent = 'Gagal menyimpan: ' + err.message; }
+  finally { btn.disabled = false; }
+};
+
+
+/* ========== Struk (cetak lewat browser) ========== */
 function printReceipt(s){
   const d = new Date(s.created_at).toLocaleString('id-ID', {dateStyle:'short', timeStyle:'short'});
-  $('#struk').innerHTML =
+  const st = $('#struk');
+  st.style.width = (S.paper === '80' ? 76 : 58) + 'mm';
+  st.innerHTML =
     (S.logo ? `<img src="${S.logo}" alt="">` : '') +
     `<h2>${esc(S.shopName || 'Toko Saya')}</h2>` +
     (S.address ? `<div class="c">${esc(S.address).replace(/\n/g, '<br>')}</div>` : '') +
-    `<hr><div>${d}</div><div>No: ${s.id.slice(0, 8)}</div><hr>` +
+    `<hr><div>${d}</div><div>No: ${invNo(s)}</div><div>Pelanggan: ${esc(custName(s))}</div><hr>` +
     s.items.map(i => `<div>${esc(i.name)}</div><div class="r"><span>${i.qty} × ${Math.round(i.price).toLocaleString('id-ID')}</span><span>${Math.round(i.price * i.qty).toLocaleString('id-ID')}</span></div>`).join('') +
     `<hr><div class="r"><b>TOTAL</b><b>${Math.round(s.total).toLocaleString('id-ID')}</b></div>` +
     `<div class="r"><span>Bayar</span><span>${Math.round(s.paid).toLocaleString('id-ID')}</span></div>` +
@@ -401,6 +511,284 @@ function printReceipt(s){
   const go = () => setTimeout(() => window.print(), 150);
   if (img && !img.complete) { img.onload = go; img.onerror = go; } else go();
 }
+
+/* ========== Invoice berupa gambar (canvas) ========== */
+const loadImg = src => new Promise(res => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = src; });
+function roundRect(ctx, x, y, w, h, r){
+  ctx.beginPath(); ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+function wrapCanvas(ctx, text, maxW){
+  const lines = []; let cur = '';
+  String(text).split(/\s+/).filter(Boolean).forEach(word => {
+    const t = cur ? cur + ' ' + word : word;
+    if (ctx.measureText(t).width <= maxW) { cur = t; return; }
+    if (cur) lines.push(cur);
+    cur = word;
+    while (ctx.measureText(cur).width > maxW && cur.length > 1) {   // kata sangat panjang dipotong
+      let k = cur.length; while (k > 1 && ctx.measureText(cur.slice(0, k)).width > maxW) k--;
+      lines.push(cur.slice(0, k)); cur = cur.slice(k);
+    }
+  });
+  if (cur) lines.push(cur);
+  return lines.length ? lines : [''];
+}
+// draw=false: hanya mengukur tinggi. draw=true: menggambar. Mengembalikan tinggi total.
+function paintInvoice(ctx, s, logo, draw){
+  const W = 720, P = 40, TEAL = '#0f766e', INK = '#1c2530', MUTED = '#6b7785', LINE = '#e3e8ee', OK = '#15803d';
+  const font = (w, sz) => `${w} ${sz}px system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif`;
+  const T = (txt, x, y, w, sz, color, align = 'left') => {
+    ctx.font = font(w, sz); if (!draw) return;
+    ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = 'alphabetic'; ctx.fillText(txt, x, y);
+  };
+  const wrap = (txt, maxW, w, sz) => { ctx.font = font(w, sz); return wrapCanvas(ctx, txt, maxW); };
+  const hr = y => { if (!draw) return; ctx.strokeStyle = LINE; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(P, y); ctx.lineTo(W - P, y); ctx.stroke(); };
+
+  let y = P;
+  // --- Kepala: logo, nama toko, alamat | judul INVOICE
+  let lw = 0, lh = 0;
+  if (logo) {
+    const sc = Math.min(64 / logo.width, 64 / logo.height), w = logo.width * sc, h = logo.height * sc;
+    lw = 80; lh = h; if (draw) ctx.drawImage(logo, P, y, w, h);
+  }
+  let by = y + 24, last = by;
+  wrap(S.shopName || 'Toko Saya', 340, 'bold', 24).forEach(l => { T(l, P + lw, by, 'bold', 24, INK); last = by; by += 30; });
+  by = last + 22;
+  if (S.address) S.address.split('\n').flatMap(p => wrap(p, 340, 'normal', 14)).forEach(l => { T(l, P + lw, by, 'normal', 14, MUTED); last = by; by += 19; });
+  T('INVOICE', W - P, y + 28, 'bold', 30, TEAL, 'right');
+  T(invNo(s), W - P, y + 52, 'normal', 14, MUTED, 'right');
+  y = Math.max(y + lh, last + 8, y + 60) + 20;
+  hr(y); y += 28;
+
+  // --- Pelanggan & tanggal
+  T('PELANGGAN', P, y, 'bold', 12, MUTED); T('TANGGAL', W - P, y, 'bold', 12, MUTED, 'right');
+  y += 24;
+  const cl = wrap(custName(s), 340, 'bold', 18);
+  cl.forEach((l, i) => T(l, P, y + i * 24, 'bold', 18, INK));
+  T(new Date(s.created_at).toLocaleString('id-ID', {dateStyle:'long', timeStyle:'short'}), W - P, y, 'normal', 16, INK, 'right');
+  y += (cl.length - 1) * 24 + 34;
+
+  // --- Tabel barang
+  if (draw) { ctx.fillStyle = TEAL; roundRect(ctx, P, y, W - 2 * P, 36, 8); ctx.fill(); }
+  T('BARANG', 52, y + 23, 'bold', 13, '#fff'); T('QTY', 390, y + 23, 'bold', 13, '#fff', 'center');
+  T('HARGA', 540, y + 23, 'bold', 13, '#fff', 'right'); T('SUBTOTAL', 668, y + 23, 'bold', 13, '#fff', 'right');
+  y += 36;
+  s.items.forEach(i => {
+    const nl = wrap(i.name, 290, 'normal', 16), rh = nl.length * 22 + 22;
+    nl.forEach((l, k) => T(l, 52, y + 28 + k * 22, 'normal', 16, INK));
+    T(String(i.qty), 390, y + 28, 'normal', 16, INK, 'center');
+    T(fmt(i.price), 540, y + 28, 'normal', 16, INK, 'right');
+    T(fmt(i.price * i.qty), 668, y + 28, 'bold', 16, INK, 'right');
+    y += rh; hr(y);
+  });
+
+  // --- Total
+  y += 34;
+  const ty = y;
+  const row = (label, val, bold, sz) => {
+    T(label, 400, y, bold ? 'bold' : 'normal', sz, bold ? INK : MUTED);
+    T(val, 668, y, bold ? 'bold' : 'normal', sz, INK, 'right'); y += sz + 14;
+  };
+  row('Total', fmt(s.total), true, 22); row('Bayar', fmt(s.paid), false, 16); row('Kembali', fmt(s.change_amount), false, 16);
+  if (s.paid >= s.total) {
+    if (draw) { ctx.strokeStyle = OK; ctx.lineWidth = 2; roundRect(ctx, P + 12, ty - 23, 88, 34, 8); ctx.stroke(); }
+    T('LUNAS', P + 12 + 44, ty - 1, 'bold', 16, OK, 'center');
+  }
+
+  // --- Catatan bawah
+  y += 4; hr(y); y += 32;
+  wrap(S.footer || 'Terima kasih atas kunjungan Anda', 560, 'normal', 15).forEach(l => { T(l, W / 2, y, 'normal', 15, MUTED, 'center'); y += 22; });
+  return y + P - 12;
+}
+async function renderInvoice(s){
+  const logo = S.logo ? await loadImg(S.logo) : null;
+  const H = Math.ceil(paintInvoice(document.createElement('canvas').getContext('2d'), s, logo, false));
+  const sc = 2, c = document.createElement('canvas'); c.width = 720 * sc; c.height = H * sc;
+  const ctx = c.getContext('2d'); ctx.scale(sc, sc); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, 720, H);
+  paintInvoice(ctx, s, logo, true);
+  return c;
+}
+
+/* ========== Dialog invoice (dipakai setelah simpan, dari tab Invoice, dan dari Laporan) ========== */
+let curSale = null, curBlob = null, invToken = 0;
+const invMsg = t => { $('#invStatus').textContent = t; };
+async function openInvoice(s, fresh){
+  curSale = s; curBlob = null; const my = ++invToken;
+  $('#invBanner').hidden = !fresh;
+  $('#invImg').removeAttribute('src');
+  invMsg('Membuat gambar invoice…');
+  if (!$('#dlgInvoice').open) $('#dlgInvoice').showModal();
+  try {
+    const c = await renderInvoice(s);
+    const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+    if (my !== invToken) return;
+    curBlob = blob; $('#invImg').src = URL.createObjectURL(blob); invMsg('');
+  } catch (err) { if (my === invToken) invMsg('⚠ Gagal membuat gambar: ' + err.message); }
+}
+$('#invClose').onclick = () => $('#dlgInvoice').close();
+$('#invDownload').onclick = () => {
+  if (!curBlob) return;
+  const a = document.createElement('a'); a.href = URL.createObjectURL(curBlob); a.download = invNo(curSale) + '.png';
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  invMsg('✓ Gambar diunduh.');
+};
+$('#invShare').onclick = async () => {
+  if (!curBlob) return;
+  const file = new File([curBlob], invNo(curSale) + '.png', {type:'image/png'});
+  if (navigator.canShare && navigator.canShare({files:[file]})) {
+    try { await navigator.share({files:[file], title:'Invoice ' + invNo(curSale)}); }
+    catch (err) { if (err.name !== 'AbortError') invMsg('⚠ Gagal membagikan: ' + err.message); }
+  } else invMsg('Perangkat ini tidak mendukung fitur bagikan. Gunakan "Unduh gambar".');
+};
+$('#invPrint').onclick = () => { if (curSale) printReceipt(curSale); };
+
+/* ========== Cetak ke printer Bluetooth (ESC/POS) ========== */
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const ascii = t => String(t ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/×/g, 'x').replace(/[^\x20-\x7E\n]/g, '?');
+const num = n => Math.round(n).toLocaleString('id-ID');
+function wrapAscii(t, w){
+  const res = [];
+  ascii(t).split('\n').forEach(p => {
+    let cur = '';
+    p.split(/\s+/).filter(Boolean).forEach(word => {
+      while (word.length > w) { if (cur) { res.push(cur); cur = ''; } res.push(word.slice(0, w)); word = word.slice(w); }
+      if (!cur) cur = word; else if ((cur + ' ' + word).length <= w) cur += ' ' + word; else { res.push(cur); cur = word; }
+    });
+    res.push(cur);
+  });
+  return res;
+}
+function escBuilder(){
+  const W = S.paper === '80' ? 48 : 32, out = [];
+  const raw = (...b) => { for (const x of b) out.push(x); };
+  return {
+    W,
+    init: () => raw(0x1B, 0x40),
+    align: n => raw(0x1B, 0x61, n),
+    bold: on => raw(0x1B, 0x45, on ? 1 : 0),
+    ln: (t = '') => { const a = ascii(t); for (let i = 0; i < a.length; i++) out.push(a.charCodeAt(i)); out.push(10); },
+    feed: n => raw(0x1B, 0x64, n),
+    raster: ({w, h, data}) => { const wb = w / 8; raw(0x1D, 0x76, 0x30, 0, wb & 255, wb >> 8, h & 255, h >> 8); for (let i = 0; i < data.length; i++) out.push(data[i]); },
+    bytes: () => Uint8Array.from(out)
+  };
+}
+async function logoRaster(maxW){
+  const img = await loadImg(S.logo); if (!img) return null;
+  const sc = Math.min(1, maxW / img.width, 100 / img.height);
+  const w = Math.max(8, Math.floor(img.width * sc / 8) * 8), h = Math.max(1, Math.round(img.height * sc));
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, w, h); x.drawImage(img, 0, 0, w, h);
+  const px = x.getImageData(0, 0, w, h).data, wb = w / 8, data = new Uint8Array(wb * h);
+  for (let r = 0; r < h; r++) for (let b = 0; b < wb; b++) {
+    let v = 0;
+    for (let k = 0; k < 8; k++) {
+      const i = (r * w + b * 8 + k) * 4;
+      if (0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2] < 140) v |= 0x80 >> k;
+    }
+    data[r * wb + b] = v;
+  }
+  return {w, h, data};
+}
+async function buildReceiptBytes(s, withLogo){
+  const e = escBuilder(), W = e.W, dash = '-'.repeat(W);
+  const lr = (l, r) => { l = ascii(l); r = ascii(r); l = l.slice(0, Math.max(0, W - r.length - 1)); return l + ' '.repeat(Math.max(1, W - l.length - r.length)) + r; };
+  const d = new Date(s.created_at).toLocaleString('id-ID', {dateStyle:'short', timeStyle:'short'});
+  e.init();
+  if (withLogo && S.logo) { try { const r = await logoRaster(W === 48 ? 200 : 160); if (r) { e.align(1); e.raster(r); e.ln(); } } catch (_) {} }
+  e.align(1); e.bold(true); wrapAscii(S.shopName || 'Toko Saya', W).forEach(l => e.ln(l)); e.bold(false);
+  if (S.address) wrapAscii(S.address, W).forEach(l => e.ln(l));
+  e.align(0); e.ln(dash);
+  e.ln('No   : ' + invNo(s)); e.ln('Tgl  : ' + d);
+  wrapAscii('Plgn : ' + custName(s), W).forEach(l => e.ln(l));
+  e.ln(dash);
+  s.items.forEach(i => { wrapAscii(i.name, W).forEach(l => e.ln(l)); e.ln(lr('  ' + i.qty + ' x ' + num(i.price), num(i.price * i.qty))); });
+  e.ln(dash);
+  e.bold(true); e.ln(lr('TOTAL', num(s.total))); e.bold(false);
+  e.ln(lr('Bayar', num(s.paid))); e.ln(lr('Kembali', num(s.change_amount)));
+  e.ln(dash); e.align(1); wrapAscii(S.footer || 'Terima kasih', W).forEach(l => e.ln(l)); e.feed(4);
+  return e.bytes();
+}
+function buildTestBytes(){
+  const e = escBuilder(); e.init(); e.align(1); e.bold(true); e.ln('TES PRINTER'); e.bold(false);
+  e.ln('Koneksi berhasil'); e.ln('-'.repeat(e.W)); e.feed(4); return e.bytes();
+}
+
+// UUID layanan cetak BLE yang umum dipakai printer thermal murah
+const BT_SERVICES = [
+  '000018f0-0000-1000-8000-00805f9b34fb', 'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
+  '49535343-fe7d-4ae5-8fa9-9fafd205e455', '0000ff00-0000-1000-8000-00805f9b34fb',
+  '0000ffe0-0000-1000-8000-00805f9b34fb', '0000fee7-0000-1000-8000-00805f9b34fb',
+  '0000ae30-0000-1000-8000-00805f9b34fb', '000018f1-0000-1000-8000-00805f9b34fb'
+];
+let btDev = null, btChar = null;
+async function btGetChar(){
+  if (!navigator.bluetooth) throw new Error('Browser ini tidak mendukung Bluetooth langsung. Gunakan Chrome di Android, atau pilih "RawBT" di bawah.');
+  if (btChar && btDev && btDev.gatt.connected) return btChar;
+  if (!btDev) {
+    btDev = await navigator.bluetooth.requestDevice({acceptAllDevices:true, optionalServices:BT_SERVICES});
+    btDev.addEventListener('gattserverdisconnected', () => { btChar = null; });
+  }
+  const server = await btDev.gatt.connect();
+  let services = [];
+  try { services = await server.getPrimaryServices(); } catch (_) {}
+  for (const sv of services) {
+    const chars = await sv.getCharacteristics();
+    const c = chars.find(c => c.properties.write || c.properties.writeWithoutResponse);
+    if (c) { btChar = c; return c; }
+  }
+  btDev = null;
+  throw new Error('Printer ini tidak punya jalur cetak BLE yang dikenali (kemungkinan printer Bluetooth klasik). Gunakan "RawBT" di bawah.');
+}
+async function btSend(bytes){
+  const c = await btGetChar();
+  const withResp = c.properties.write;            // pakai konfirmasi jika tersedia (lebih andal)
+  const size = withResp ? 100 : 20;
+  for (let i = 0; i < bytes.length; i += size) {
+    const part = bytes.slice(i, i + size);
+    if (withResp) await (c.writeValueWithResponse ? c.writeValueWithResponse(part) : c.writeValue(part));
+    else { await c.writeValueWithoutResponse(part); await sleep(15); }
+  }
+}
+const btErr = err => (err && err.name === 'NotFoundError' && /cancel/i.test(err.message || '')) ? 'Pemilihan printer dibatalkan.' : ((err && err.message) || 'Gagal mencetak');
+
+$('#invBt').onclick = async () => {
+  if (!curSale) return; const b = $('#invBt'); b.disabled = true;
+  try {
+    invMsg('Menghubungkan ke printer… (pilih printer pada daftar)'); await btGetChar();
+    invMsg('Menyiapkan struk…'); const bytes = await buildReceiptBytes(curSale, true);
+    invMsg('Mencetak…'); await btSend(bytes);
+    invMsg('✓ Terkirim ke printer.');
+  } catch (err) { invMsg('⚠ ' + btErr(err)); }
+  finally { b.disabled = false; }
+};
+// Printer Bluetooth klasik (tanpa BLE): kirim lewat aplikasi RawBT (harus terpasang di Android)
+$('#invRawbt').onclick = async () => {
+  if (!curSale) return;
+  const u8 = await buildReceiptBytes(curSale, false);
+  let bin = ''; for (let i = 0; i < u8.length; i += 0x8000) bin += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000));
+  invMsg('Membuka RawBT… Jika tidak terbuka, pasang aplikasi RawBT dari Play Store.');
+  location.href = 'intent:base64,' + btoa(bin) + '#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;end;';
+};
+
+/* ========== Tab Invoice: pilih transaksi untuk dibuat gambarnya ========== */
+function renderInvList(){
+  const q = $('#iq').value.trim().toLowerCase();
+  const list = sales.filter(s => !q || (s.customer || '').toLowerCase().includes(q) || invNo(s).toLowerCase().includes(q) ||
+    new Date(s.created_at).toLocaleDateString('id-ID').includes(q)).slice(0, 50);
+  $('#invList').innerHTML = list.length ? list.map(s => `
+    <div class="li" data-id="${s.id}"><div>${esc(custName(s))}<small>${invNo(s)} · ${new Date(s.created_at).toLocaleString('id-ID', {dateStyle:'short', timeStyle:'short'})}</small></div><b>${fmt(s.total)}</b></div>`).join('')
+    : '<p class="muted">Tidak ada transaksi yang cocok.</p>';
+}
+$('#iq').oninput = renderInvList;
+$('#invList').onclick = e => { const r = e.target.closest('.li'); if (!r) return; const s = sales.find(x => x.id === r.dataset.id); if (s) openInvoice(s, false); };
+
+/* ========== Pengaturan printer ========== */
+$('#sPaper').onchange = async e => { S.paper = e.target.value; await setSet('paper', S.paper); toast('Lebar kertas disimpan'); };
+$('#btnBtTest').onclick = async () => {
+  try { toast('Pilih printer pada daftar…'); await btGetChar(); await btSend(buildTestBytes()); toast('Tes terkirim ke printer'); }
+  catch (err) { toast(btErr(err)); }
+};
 
 /* ========== Produk ========== */
 function renderProdList(){
@@ -464,7 +852,7 @@ function renderReport(){
   const top = Object.entries(agg).sort((a, b) => b[1].qty - a[1].qty).slice(0, 5);
   $('#top').innerHTML = top.length ? top.map(([n, v]) => `<div class="li" style="cursor:default"><span>${esc(n)}</span><span>${v.qty} pcs · ${fmt(v.sum)}</span></div>`).join('') : '<p class="muted">Belum ada data.</p>';
   $('#saleList').innerHTML = list.length ? list.map(s => `
-    <div class="li" data-id="${s.id}"><div>${new Date(s.created_at).toLocaleString('id-ID', {dateStyle:'short', timeStyle:'short'})}<small>${s.items.length} jenis barang · <span class="${s.synced ? 'ok' : 'wait'}">${s.synced ? '✓ terkirim' : '⏳ menunggu kirim'}</span></small></div><b>${fmt(s.total)}</b></div>`).join('')
+    <div class="li" data-id="${s.id}"><div>${new Date(s.created_at).toLocaleString('id-ID', {dateStyle:'short', timeStyle:'short'})}<small>${s.customer ? esc(s.customer) + ' · ' : ''}${s.items.length} jenis barang · <span class="${s.synced ? 'ok' : 'wait'}">${s.synced ? '✓ terkirim' : '⏳ menunggu kirim'}</span></small></div><b>${fmt(s.total)}</b></div>`).join('')
     : '<p class="muted">Tidak ada transaksi pada rentang ini.</p>';
 }
 $('#dFrom').value = $('#dTo').value = todayStr();
@@ -473,13 +861,13 @@ $('#saleList').onclick = e => {
   const r = e.target.closest('.li'); if (!r) return;
   viewingSale = sales.find(s => s.id === r.dataset.id); if (!viewingSale) return;
   const s = viewingSale;
-  $('#saleDetail').innerHTML = `<div class="muted">${new Date(s.created_at).toLocaleString('id-ID')}</div>` +
+  $('#saleDetail').innerHTML = `<div class="muted">${new Date(s.created_at).toLocaleString('id-ID')} · ${invNo(s)}</div><div><b>${esc(custName(s))}</b></div>` +
     s.items.map(i => `<div class="line"><div class="nm">${esc(i.name)}<small>${fmt(i.price)} × ${i.qty}</small></div><b>${fmt(i.price * i.qty)}</b></div>`).join('') +
     `<div class="total"><span>Total</span><span>${fmt(s.total)}</span></div><div class="muted">Bayar ${fmt(s.paid)} · Kembali ${fmt(s.change_amount)}</div>`;
   $('#dlgSale').showModal();
 };
 $('#dsClose').onclick = () => $('#dlgSale').close();
-$('#dsPrint').onclick = () => { $('#dlgSale').close(); if (viewingSale) printReceipt(viewingSale); };
+$('#dsPrint').onclick = () => { $('#dlgSale').close(); if (viewingSale) openInvoice(viewingSale, false); };
 
 function download(name, text, type){
   const blob = new Blob([text], {type}); const a = document.createElement('a');
@@ -489,8 +877,8 @@ function download(name, text, type){
 $('#btnCsv').onclick = () => {
   const list = reportSales(); if (!list.length) { toast('Tidak ada data'); return; }
   const q = v => '"' + String(v).replace(/"/g, '""') + '"';
-  const rows = [['Tanggal', 'No Transaksi', 'Produk', 'Qty', 'Harga', 'Subtotal', 'Total Transaksi']];
-  [...list].reverse().forEach(s => s.items.forEach(i => rows.push([new Date(s.created_at).toLocaleString('id-ID'), s.id.slice(0, 8), i.name, i.qty, i.price, i.price * i.qty, s.total])));
+  const rows = [['Tanggal', 'No Transaksi', 'Produk', 'Qty', 'Harga', 'Subtotal', 'Total Transaksi', 'Pelanggan']];
+  [...list].reverse().forEach(s => s.items.forEach(i => rows.push([new Date(s.created_at).toLocaleString('id-ID'), s.id.slice(0, 8), i.name, i.qty, i.price, i.price * i.qty, s.total, s.customer || ''])));
   download('laporan-' + $('#dFrom').value + '_sd_' + $('#dTo').value + '.csv', '\uFEFF' + rows.map(r => r.map(q).join(',')).join('\r\n'), 'text/csv;charset=utf-8');
 };
 
@@ -645,7 +1033,7 @@ async function pull(url, H, table, lastKey){
       if (put.length) await dbPutMany('products', put);
     } else {
       const have = new Set(sales.map(s => s.id));
-      const put = rows.filter(rm => !have.has(rm.id)).map(rm => ({id:rm.id, created_at:rm.created_at, total:Number(rm.total), paid:Number(rm.paid), change_amount:Number(rm.change_amount), items:rm.items, synced:1}));
+      const put = rows.filter(rm => !have.has(rm.id)).map(rm => ({id:rm.id, created_at:rm.created_at, total:Number(rm.total), paid:Number(rm.paid), change_amount:Number(rm.change_amount), customer:rm.customer || '', items:rm.items, synced:1}));
       if (put.length) await dbPutMany('sales', put);
     }
     last = rows[rows.length - 1].synced_at; await setSet(lastKey, last);
@@ -691,7 +1079,7 @@ async function trySync(manual){
     await loadData(); renderProducts(); renderProdList(); renderCart();
     if ($('#tab-laporan').classList.contains('active')) renderReport();
     if (manual) toast('Sinkronisasi selesai');
-  } catch (err) { console.error(err); if (manual) toast('Gagal sinkron: ' + err.message); }
+  } catch (err) { console.error(err); if (manual) toast(/customer/.test(err.message) ? 'Kolom "customer" belum ada di Supabase. Jalankan SQL dari supabase.sql dulu.' : 'Gagal sinkron: ' + err.message); }
   finally { syncing = false; updateBadge(); }
 }
 window.addEventListener('online', () => { updateBadge(); trySync(); });
